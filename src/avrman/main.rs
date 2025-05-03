@@ -7,8 +7,7 @@ fn main() -> AvrResult<()> {
     };
 
     let programmer = avrman::Programmer::new(protocol)?;
-
-    programmer.program_file("path/to/firmware.hex")?;
+    programmer.program_file("./tests/blink.uno.hex")?;
 
     Ok(())
 }

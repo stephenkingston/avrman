@@ -16,6 +16,7 @@ pub struct Programmer {
 
 pub(crate) trait ProgrammerTrait {
     fn program_firmware(&self, firmware: Vec<u8>) -> AvrResult<()>;
+    fn reset(&self) -> AvrResult<()>;
 }
 
 impl Programmer {
