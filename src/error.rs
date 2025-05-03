@@ -7,6 +7,9 @@ pub enum AvrError {
 
     #[error("Firmware error: {0}")]
     FirmwareError(String),
+
+    #[error("Programmer error: {0}")]
+    ProgrammerError(String),
 }
 
 pub type AvrResult<T> = std::result::Result<T, AvrError>;

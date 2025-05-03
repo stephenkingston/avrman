@@ -87,6 +87,61 @@ impl Stk500 {
             .recv()
             .map_err(|e| AvrError::Communication(format!("Failed to receive response: {:?}", e)))
     }
+
+    pub(crate) fn sync(&self) -> AvrResult<()> {
+        let sync_command = vec![0x30, 0x20];
+        let expected_response = vec![0x14, 0x10];
+        let mut synced = false;
+
+        for i in 0..15 {
+            self.send_command(sync_command.clone())?;
+            let response = self.receive_response()?;
+            println!("Response {:?}", response);
+
+            if response == expected_response {
+                println!("Synchronized with STK500.");
+                synced = true;
+                break;
+            } else {
+                println!("Failed to synchronize with STK500. Attempt {}/3", i + 1);
+            }
+        }
+
+        if synced {
+            Ok(())
+        } else {
+            Err(AvrError::ProgrammerError(format!(
+                "Stk500: Failed to sync with target"
+            )))
+        }
+    }
+
+    fn verify_signature(&self) -> AvrResult<()> {
+        let cmd = vec![0x75, 0x20];
+        let expected_response = vec![0x14, 0x1e, 0x95, 0x0f, 0x10];
+        let mut verified = false;
+
+        for _ in 0..30 {
+            self.send_command(cmd.clone())?;
+            let resp = self.receive_response()?;
+
+            println!("signature response {:?}", resp);
+
+            if expected_response == resp {
+                println!("Verified signature!");
+                verified = true;
+                break;
+            }
+        }
+
+        if verified {
+            Ok(())
+        } else {
+            Err(AvrError::ProgrammerError(format!(
+                "Could not verify device signature"
+            )))
+        }
+    }
 }
 
 impl ProgrammerTrait for Stk500 {
@@ -94,20 +149,8 @@ impl ProgrammerTrait for Stk500 {
         let _ = firmware;
         self.reset()?;
 
-        let sync_command = vec![0x30, 0x20];
-        let expected_response = vec![0x14, 0x10];
-
-        for i in 0..3 {
-            self.send_command(sync_command.clone())?;
-            let response = self.receive_response()?;
-
-            if response == expected_response {
-                println!("Synchronized with STK500.");
-                break;
-            } else {
-                println!("Failed to synchronize with STK500. Attempt {}/3", i + 1);
-            }
-        }
+        self.sync()?;
+        self.verify_signature()?;
 
         Ok(())
     }

@@ -69,7 +69,7 @@ impl ProgrammerInterface for SerialPortTransport {
             .write_data_terminal_ready(false)
             .map_err(|e| AvrError::Communication(format!("Failed to set DTR false: {:?}", e)))?;
 
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(std::time::Duration::from_millis(250));
 
         self.serial_port
             .write_request_to_send(true)
@@ -77,6 +77,8 @@ impl ProgrammerInterface for SerialPortTransport {
         self.serial_port
             .write_data_terminal_ready(true)
             .map_err(|e| AvrError::Communication(format!("Failed to set DTR true: {:?}", e)))?;
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
         Ok(())
     }
 }
