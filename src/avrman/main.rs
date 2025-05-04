@@ -1,12 +1,13 @@
-use avrman::error::AvrResult;
+use avrman::{Microcontroller, error::AvrResult};
 
 fn main() -> AvrResult<()> {
-    let protocol = avrman::ProtocolType::Stk500 {
-        serial_port: String::from("/dev/ttyUSB0"),
-        baud_rate: 115200,
-    };
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .init();
 
-    let programmer = avrman::Programmer::new(protocol)?;
+    let mcu = Microcontroller::ArduinoUno(String::from("/dev/ttyUSB0"));
+    let programmer = avrman::Programmer::new(mcu)?;
+
     programmer.program_file("./tests/blink.uno.hex")?;
 
     Ok(())

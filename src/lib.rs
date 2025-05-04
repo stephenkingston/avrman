@@ -1,13 +1,18 @@
+use boards::protocol_for_mcu;
 use error::{AvrError, AvrResult};
+use protocols::stk500::Stk500Params;
 
+pub mod boards;
 pub(crate) mod constants;
 pub mod error;
+pub(crate) mod interface;
 pub mod protocols;
-pub(crate) mod transport;
 pub(crate) mod util;
 
+pub use boards::Microcontroller;
+
 pub enum ProtocolType {
-    Stk500 { serial_port: String, baud_rate: u32 },
+    Stk500(Stk500Params),
 }
 
 pub struct Programmer {
@@ -20,18 +25,17 @@ pub(crate) trait ProgrammerTrait {
 }
 
 impl Programmer {
-    pub fn new(protocol: ProtocolType) -> AvrResult<Self> {
-        let programmer: Box<dyn ProgrammerTrait> = match &protocol {
-            ProtocolType::Stk500 {
-                serial_port,
-                baud_rate,
-            } => Box::new(protocols::stk500::Stk500::new(
-                serial_port.clone(),
-                *baud_rate,
-            )?),
+    pub fn from_protocol(protocol: ProtocolType) -> AvrResult<Self> {
+        let programmer: Box<dyn ProgrammerTrait> = match protocol {
+            ProtocolType::Stk500(params) => Box::new(protocols::stk500::Stk500::new(params)?),
         };
 
         Ok(Programmer { programmer })
+    }
+
+    pub fn new(mcu: Microcontroller) -> AvrResult<Self> {
+        let protocol = protocol_for_mcu(mcu);
+        Self::from_protocol(protocol)
     }
 
     pub fn program_file(&self, file_path: &str) -> AvrResult<()> {

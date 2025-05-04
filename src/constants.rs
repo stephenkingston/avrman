@@ -1,4 +1,3 @@
-pub(crate) const SERIAL_TIMEOUT_MS: u64 = 100;
-pub(crate) const MAX_RESPONSE_SIZE: usize = 4096;
-pub(crate) const MIN_RESPONSE_SIZE: usize = 1;
-pub(crate) const TRANSPORT_THREAD_SLEEP_MS: u64 = 1;
+pub(crate) const SERIAL_TIMEOUT_MS: u64 = 800;
+pub(crate) const TRANSPORT_THREAD_SLEEP_MICROS: u64 = 100;
+pub(crate) const MAX_RESPONSE_SIZE: usize = 1024;
