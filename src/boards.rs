@@ -9,7 +9,7 @@ pub enum Microcontroller {
 
 pub(crate) fn protocol_for_mcu(board: Microcontroller) -> ProtocolType {
     match board {
-        Microcontroller::ArduinoUno(port) => ProtocolType::Stk500(Stk500v1Params {
+        Microcontroller::ArduinoUno(port) => ProtocolType::Stk500v1(Stk500v1Params {
             port,
             baud: 115200,
             signature: vec![0x1e, 0x95, 0x0f],

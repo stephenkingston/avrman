@@ -34,7 +34,7 @@ pub struct Stk500v1Params {
     pub verify: bool,
 }
 
-pub(crate) struct Stk500 {
+pub(crate) struct Stk500v1 {
     source: mpsc::Receiver<Vec<u8>>,
     sink: mpsc::Sender<Vec<u8>>,
 
@@ -42,7 +42,7 @@ pub(crate) struct Stk500 {
     params: Stk500v1Params,
 }
 
-impl Stk500 {
+impl Stk500v1 {
     pub fn new(params: Stk500v1Params) -> AvrResult<Self> {
         let device_interface: Box<dyn DeviceInterface + Send> =
             Box::new(SerialPortDevice::new(params.port.clone(), params.baud)?);
@@ -100,7 +100,7 @@ impl Stk500 {
             }
         });
 
-        Ok(Stk500 {
+        Ok(Stk500v1 {
             source,
             sink,
             device_interface,
@@ -406,7 +406,7 @@ impl Stk500 {
     }
 }
 
-impl ProgrammerTrait for Stk500 {
+impl ProgrammerTrait for Stk500v1 {
     fn program_firmware(&self, firmware: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
         self.reset()?;
         self.sync()?;

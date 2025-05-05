@@ -14,7 +14,7 @@ pub mod protocols;
 pub(crate) mod util;
 
 pub enum ProtocolType {
-    Stk500(Stk500v1Params),
+    Stk500v1(Stk500v1Params),
 }
 
 pub struct Programmer {
@@ -25,7 +25,7 @@ pub struct Programmer {
 impl Programmer {
     pub fn from_protocol(protocol: ProtocolType) -> AvrResult<Self> {
         let programmer: Box<dyn ProgrammerTrait> = match protocol {
-            ProtocolType::Stk500(params) => Box::new(protocols::stk500v1::Stk500::new(params)?),
+            ProtocolType::Stk500v1(params) => Box::new(protocols::stk500v1::Stk500v1::new(params)?),
         };
 
         Ok(Programmer {
