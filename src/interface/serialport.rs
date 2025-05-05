@@ -1,7 +1,7 @@
-use tracing::{info, trace};
-
 use super::DeviceInterface;
-use crate::constants::{MAX_RESPONSE_SIZE, MIN_RESPONSE_SIZE, SERIAL_TIMEOUT_MS};
+use crate::constants::{
+    MAX_RESPONSE_SIZE, POST_RESET_BOOTUP_DELAY_MS, RESET_DTR_RTS_LOW_MICROS, SERIAL_TIMEOUT_MS,
+};
 
 use crate::error::{AvrError, AvrResult};
 use std::io::{Read, Write};
@@ -30,13 +30,11 @@ impl DeviceInterface for SerialPortDevice {
         self.serial_port
             .write_all(&command)
             .map_err(|e| AvrError::Communication(format!("{:?}", e)))?;
-        trace!("Sent bytes {:?}", command);
         Ok(())
     }
 
     fn receive(&mut self) -> AvrResult<Vec<u8>> {
-        let mut buffer: Vec<u8> = Vec::with_capacity(MAX_RESPONSE_SIZE);
-        buffer.resize(MAX_RESPONSE_SIZE, 0);
+        let mut buffer: Vec<u8> = vec![0; MAX_RESPONSE_SIZE];
 
         let size = self
             .serial_port
@@ -53,16 +51,7 @@ impl DeviceInterface for SerialPortDevice {
 
         // Return a buffer with the actual length
         buffer.truncate(size);
-        info!("Received bytes {:?}", buffer);
         Ok(buffer)
-    }
-
-    fn flush_buffers(&mut self) -> AvrResult<()> {
-        self.serial_port.flush().map_err(|e| {
-            AvrError::ProgrammerError(format!("Failed to flush send/receive buffers, {}", e))
-        })?;
-
-        Ok(())
     }
 
     fn reset(&mut self) -> AvrResult<()> {
@@ -74,7 +63,7 @@ impl DeviceInterface for SerialPortDevice {
             .write_request_to_send(false)
             .map_err(|e| AvrError::Communication(format!("Failed to set RTS false: {:?}", e)))?;
 
-        std::thread::sleep(std::time::Duration::from_millis(250));
+        std::thread::sleep(std::time::Duration::from_micros(RESET_DTR_RTS_LOW_MICROS));
 
         self.serial_port
             .write_data_terminal_ready(true)
@@ -83,7 +72,7 @@ impl DeviceInterface for SerialPortDevice {
             .write_request_to_send(true)
             .map_err(|e| AvrError::Communication(format!("Failed to set RTS true: {:?}", e)))?;
 
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(POST_RESET_BOOTUP_DELAY_MS));
         Ok(())
     }
 }

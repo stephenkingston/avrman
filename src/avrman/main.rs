@@ -6,9 +6,10 @@ fn main() -> AvrResult<()> {
         .init();
 
     let mcu = Microcontroller::ArduinoUno(String::from("/dev/ttyUSB0"));
-    let programmer = avrman::Programmer::new(mcu)?;
+    let mut programmer = avrman::Programmer::new(mcu)?;
+    programmer.progress_bar(true);
 
-    programmer.program_hex_file("./tests/blink.uno.hex")?;
+    programmer.program_hex_file("./tests/etp.hex")?;
 
     Ok(())
 }

@@ -11,6 +11,7 @@ pub(crate) mod constants;
 pub mod error;
 pub(crate) mod interface;
 pub mod protocols;
+pub(crate) mod util;
 
 pub enum ProtocolType {
     Stk500(Stk500v1Params),
@@ -18,6 +19,7 @@ pub enum ProtocolType {
 
 pub struct Programmer {
     programmer: Box<dyn ProgrammerTrait>,
+    progress_bar_enable: bool,
 }
 
 impl Programmer {
@@ -26,7 +28,10 @@ impl Programmer {
             ProtocolType::Stk500(params) => Box::new(protocols::stk500v1::Stk500::new(params)?),
         };
 
-        Ok(Programmer { programmer })
+        Ok(Programmer {
+            programmer,
+            progress_bar_enable: false,
+        })
     }
 
     pub fn new(mcu: Microcontroller) -> AvrResult<Self> {
@@ -34,10 +39,14 @@ impl Programmer {
         Self::from_protocol(protocol)
     }
 
+    pub fn progress_bar(&mut self, enable: bool) {
+        self.progress_bar_enable = enable;
+    }
+
     /// Parse intel hex file raw string to binary
     fn parse_intel_hex(&self, hex_content: &str) -> AvrResult<Vec<u8>> {
         let mut bin = Vec::new();
-        let parser = Reader::new(&hex_content);
+        let parser = Reader::new(hex_content);
         for record in parser {
             match record {
                 Ok(rec) => {
@@ -57,7 +66,7 @@ impl Programmer {
         Ok(bin)
     }
 
-    /// Program board with provided intelhex file from file_path
+    /// Program board with provided intelhex file from file path
     pub fn program_hex_file(&self, file_path: &str) -> AvrResult<()> {
         let mut file = File::open(file_path)
             .map_err(|e| AvrError::FirmwareError(format!("Failed to read file: {}", e)))?;
@@ -67,7 +76,8 @@ impl Programmer {
         })?;
 
         let bin = self.parse_intel_hex(&hex_content)?;
-        self.programmer.program_firmware(bin)?;
+        self.programmer
+            .program_firmware(bin, self.progress_bar_enable)?;
 
         Ok(())
     }
@@ -75,13 +85,15 @@ impl Programmer {
     /// Program provided intelhex bytearray
     pub fn program_hex_buffer(&self, hex_content: &str) -> AvrResult<()> {
         let bin = self.parse_intel_hex(hex_content)?;
-        self.programmer.program_firmware(bin)?;
+        self.programmer
+            .program_firmware(bin, self.progress_bar_enable)?;
         Ok(())
     }
 
     /// Program binary (parsed from hex)
     pub fn program_binary(&self, bin: Vec<u8>) -> AvrResult<()> {
-        self.programmer.program_firmware(bin)?;
+        self.programmer
+            .program_firmware(bin, self.progress_bar_enable)?;
         Ok(())
     }
 }

@@ -1,8 +1,9 @@
 use crate::{ProtocolType, Stk500v1Params, interface::serialport::ComPort};
 
-/// Includes all boards/microcontrollers that have been tested to work
+/// Microcontroller enum includes all boards/microcontrollers
+/// that have been tested to work with avrman
 pub enum Microcontroller {
-    /// ATMega328p (Arduino Uno)
+    /// ATMega328p/Arduino Uno, initialized with COM/serial port
     ArduinoUno(ComPort),
 }
 

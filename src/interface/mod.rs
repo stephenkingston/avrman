@@ -9,9 +9,6 @@ pub(crate) trait DeviceInterface {
     /// Receive a response from the target device
     fn receive(&mut self) -> AvrResult<Vec<u8>>;
 
-    /// Flush send/receive buffers
-    fn flush_buffers(&mut self) -> AvrResult<()>;
-
     /// Reset the target device
     fn reset(&mut self) -> AvrResult<()>;
 }

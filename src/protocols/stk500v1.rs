@@ -1,28 +1,27 @@
-use tracing::{debug, info, trace};
+use indicatif::ProgressBar;
+use tracing::{debug, info};
 
 use crate::constants::TRANSPORT_THREAD_SLEEP_MICROS;
 use crate::error::AvrError;
 use crate::interface::DeviceInterface;
 use crate::interface::serialport::SerialPortDevice;
+use crate::util::{create_progress_bar, div_ceil};
 use crate::{ProgrammerTrait, error::AvrResult};
-use std::ptr::read;
 use std::sync::{Arc, Mutex, mpsc};
-use std::thread;
 
 #[repr(u8)]
 pub enum Stk500v1Message {
+    RespStkOk = 0x10,
+    RespStkInSync = 0x14,
+    SyncCrcEop = 0x20,
     CmndStkGetSync = 0x30,
     CmndStkSetDevice = 0x42,
     CmndStkEnterProgMode = 0x50,
+    CmndStkLeaveProgMode = 0x51,
     CmndStkLoadAddress = 0x55,
     CmndStkProgPage = 0x64,
-    CmndStkLeaveProgMode = 0x51,
-    CmndStkReadSign = 0x75,
-    SyncCrcEop = 0x20,
-    // RespStkNoSync = 0x15,
-    RespStkInSync = 0x14,
-    RespStkOk = 0x10,
     CmndStkReadPage = 0x74,
+    CmndStkReadSign = 0x75,
 }
 
 pub struct Stk500v1Params {
@@ -110,26 +109,10 @@ impl Stk500 {
     }
 
     pub(crate) fn send_command(&self, command: Vec<u8>) -> AvrResult<()> {
-        println!("Sent bytes {:?}", command);
         self.sink
             .send(command)
             .map_err(|e| AvrError::Communication(format!("Failed to send command: {:?}", e)))?;
         Ok(())
-    }
-
-    pub fn flush_device_buffers(&self) -> AvrResult<()> {
-        self.device_interface
-            .lock()
-            .expect("Could not lock device interface")
-            .flush_buffers()?;
-
-        Ok(())
-    }
-
-    pub(crate) fn receive_response(&self) -> AvrResult<Vec<u8>> {
-        self.source
-            .recv()
-            .map_err(|e| AvrError::Communication(format!("Failed to receive response: {:?}", e)))
     }
 
     pub(crate) fn receive_response_with_size(&self, expected_size: usize) -> AvrResult<Vec<u8>> {
@@ -141,8 +124,6 @@ impl Stk500 {
             })?;
             received.extend(fresh_bytes);
         }
-
-        info!("Received with size {:?}", received);
         Ok(received)
     }
 
@@ -151,9 +132,7 @@ impl Stk500 {
         cmd: Vec<u8>,
         expected_response: Vec<u8>,
     ) -> AvrResult<()> {
-        // thread::sleep(std::time::Duration::from_millis(10));
         self.send_command(cmd.clone())?;
-        thread::sleep(std::time::Duration::from_millis(4));
         let response = self.receive_response_with_size(expected_response.len())?;
 
         if response == expected_response {
@@ -166,35 +145,8 @@ impl Stk500 {
         }
     }
 
-    fn _send_command_and_verify_response_with_retries(
-        &self,
-        cmd: Vec<u8>,
-        expected_response: Vec<u8>,
-    ) -> AvrResult<()> {
-        let mut done = false;
-        for _ in 0..3 {
-            self.send_command(cmd.clone())?;
-            thread::sleep(std::time::Duration::from_millis(4));
-            let response = self.receive_response()?;
-
-            if response == expected_response {
-                done = true;
-                break;
-            }
-        }
-
-        if done {
-            Ok(())
-        } else {
-            Err(AvrError::ProgrammerError(format!(
-                "Did not receive expected response {:?} for command {:?}",
-                cmd, expected_response
-            )))
-        }
-    }
-
     pub(crate) fn sync(&self) -> AvrResult<()> {
-        info!("Attempting to sync with target");
+        debug!("Attempting to sync with target");
         self.send_command_and_verify_response(
             vec![
                 Stk500v1Message::CmndStkGetSync as u8,
@@ -206,7 +158,7 @@ impl Stk500 {
             ],
         )?;
 
-        info!("Synced with MCU");
+        debug!("Synced with MCU");
         Ok(())
     }
 
@@ -216,7 +168,7 @@ impl Stk500 {
                 Stk500v1Message::CmndStkReadSign as u8,
                 Stk500v1Message::SyncCrcEop as u8,
             ],
-            vec![
+            [
                 vec![Stk500v1Message::RespStkInSync as u8],
                 self.params.signature.clone(),
                 vec![Stk500v1Message::RespStkOk as u8],
@@ -224,7 +176,7 @@ impl Stk500 {
             .concat(),
         )?;
 
-        info!("Verified board signature");
+        debug!("Verified board signature");
         Ok(())
     }
 
@@ -259,7 +211,7 @@ impl Stk500 {
                 Stk500v1Message::RespStkOk as u8,
             ],
         )?;
-        info!("Set options");
+        debug!("Set options");
         Ok(())
     }
 
@@ -275,7 +227,7 @@ impl Stk500 {
             ],
         )?;
 
-        info!("Entered programming mode!");
+        debug!("Entered programming mode!");
         Ok(())
     }
 
@@ -305,7 +257,7 @@ impl Stk500 {
         let bytes_low = (data_len & 0xFF) as u8;
 
         self.send_command_and_verify_response(
-            vec![
+            [
                 vec![
                     Stk500v1Message::CmndStkProgPage as u8,
                     bytes_high,
@@ -344,7 +296,7 @@ impl Stk500 {
                 0x46,
                 Stk500v1Message::SyncCrcEop as u8,
             ],
-            vec![
+            [
                 vec![Stk500v1Message::RespStkInSync as u8],
                 verify_bytes.to_vec(),
                 vec![Stk500v1Message::RespStkOk as u8],
@@ -369,8 +321,15 @@ impl Stk500 {
         Ok(())
     }
 
-    fn upload(&self, bin: Vec<u8>) -> AvrResult<()> {
-        info!("Started programming");
+    fn upload(&self, bin: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
+        let mut pb: Option<ProgressBar> = None;
+        let total_steps = div_ceil(bin.len(), self.params.page_size as usize);
+        let mut current_step = 0;
+        if enable_progress_bar {
+            pb = Some(create_progress_bar(total_steps as u64, "Programming.."));
+        }
+
+        debug!("Started programming");
         let page_size = self.params.page_size;
         let mut page_addr: u16 = 0;
         let mut use_addr: u16;
@@ -384,72 +343,90 @@ impl Stk500 {
             } else {
                 bin.len() as u16 - 1
             };
-            info!("Page addr: {}", page_addr);
-            info!("end {}", end);
-
             let slice = &bin[(page_addr as usize)..(end as usize)];
-
-            info!("Slice len: {}", slice.len());
-            if slice.len() == 0 {
-                // We've reached the end
-                std::thread::sleep(std::time::Duration::from_millis(50));
+            if slice.is_empty() {
                 break;
             }
 
             self.load_page(slice)?;
             page_addr += slice.len() as u16;
 
-            std::thread::sleep(std::time::Duration::from_millis(4));
+            if let Some(progress_bar) = &pb {
+                progress_bar.set_position(current_step);
+                current_step += 1;
+            }
+        }
+        if let Some(progress_bar) = &pb {
+            progress_bar.finish_with_message("Done programming!");
         }
 
         Ok(())
     }
 
-    fn verify(&self, bin: Vec<u8>) -> AvrResult<()> {
-        info!("Started verifying");
-        let mut page_addr = 0;
-        let mut use_addr;
-        let mut read_bytes: &[u8];
+    fn verify(&self, bin: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
+        let mut pb: Option<ProgressBar> = None;
+        let total_steps = div_ceil(bin.len(), self.params.page_size as usize);
+        let mut current_step = 0;
+        if enable_progress_bar {
+            pb = Some(create_progress_bar(total_steps as u64, "Verifying..."));
+        }
 
-        while page_addr < bin.len() {
-            use_addr = (page_addr >> 1) as u16;
+        debug!("Started verifying");
+        let mut page_addr: u16 = 0;
+        let mut use_addr;
+        let page_size = self.params.page_size;
+
+        while page_addr < bin.len() as u16 {
+            use_addr = page_addr >> 1;
             self.load_address(use_addr)?;
 
-            read_bytes = &bin[page_addr..if bin.len() > self.params.page_size as usize {
-                page_addr as usize + self.params.page_size as usize
+            let end = if bin.len() as u16 > (page_addr + page_size) {
+                page_addr + page_size
             } else {
-                bin.len() - 1
-            }];
+                bin.len() as u16 - 1
+            };
 
-            if read_bytes.len() == 0 {
+            let slice = &bin[(page_addr as usize)..(end as usize)];
+            if slice.is_empty() {
                 break;
             }
+            self.verify_page(slice)?;
 
-            self.verify_page(read_bytes)?;
+            page_addr += slice.len() as u16;
 
-            page_addr += read_bytes.len();
-            std::thread::sleep(std::time::Duration::from_millis(4));
+            if let Some(progress_bar) = &pb {
+                progress_bar.set_position(current_step);
+                current_step += 1;
+            }
+        }
+        if let Some(progress_bar) = &pb {
+            progress_bar.finish_with_message("Done verifying!");
         }
         Ok(())
     }
 }
 
 impl ProgrammerTrait for Stk500 {
-    fn program_firmware(&self, firmware: Vec<u8>) -> AvrResult<()> {
-        let _ = firmware;
+    fn program_firmware(&self, firmware: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
         self.reset()?;
-
         self.sync()?;
 
         self.verify_signature()?;
         self.set_options()?;
         self.enter_programming_mode()?;
 
-        self.upload(firmware.clone())?;
-        // self.verify(firmware)?;
+        self.upload(firmware.clone(), enable_progress_bar)?;
 
+        if self.params.verify {
+            self.verify_firmware(firmware, enable_progress_bar)?;
+        }
         self.exit_programming_mode()?;
 
+        Ok(())
+    }
+
+    fn verify_firmware(&self, firmware: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
+        self.verify(firmware, enable_progress_bar)?;
         Ok(())
     }
 
