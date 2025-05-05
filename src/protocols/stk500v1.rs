@@ -5,7 +5,7 @@ use crate::constants::TRANSPORT_THREAD_SLEEP_MICROS;
 use crate::error::AvrError;
 use crate::interface::DeviceInterface;
 use crate::interface::serialport::SerialPortDevice;
-use crate::util::{create_progress_bar, div_ceil};
+use crate::util::create_progress_bar;
 use crate::{ProgrammerTrait, error::AvrResult};
 use std::sync::{Arc, Mutex, mpsc};
 
@@ -323,7 +323,7 @@ impl Stk500 {
 
     fn upload(&self, bin: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
         let mut pb: Option<ProgressBar> = None;
-        let total_steps = div_ceil(bin.len(), self.params.page_size as usize);
+        let total_steps = bin.len().div_ceil(self.params.page_size as usize);
         let mut current_step = 0;
         if enable_progress_bar {
             pb = Some(create_progress_bar(total_steps as u64, "Programming.."));
@@ -365,7 +365,7 @@ impl Stk500 {
 
     fn verify(&self, bin: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
         let mut pb: Option<ProgressBar> = None;
-        let total_steps = div_ceil(bin.len(), self.params.page_size as usize);
+        let total_steps = bin.len().div_ceil(self.params.page_size as usize);
         let mut current_step = 0;
         if enable_progress_bar {
             pb = Some(create_progress_bar(total_steps as u64, "Verifying..."));

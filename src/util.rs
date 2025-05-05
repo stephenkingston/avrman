@@ -15,10 +15,3 @@ pub(crate) fn create_progress_bar(total_steps: u64, msg: &str) -> ProgressBar {
 
     pb
 }
-
-pub(crate) fn div_ceil(a: usize, b: usize) -> usize {
-    if b == 0 {
-        panic!("Division by zero");
-    }
-    (a + b - 1) / b
-}
