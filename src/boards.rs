@@ -36,7 +36,7 @@ pub fn protocol_for_mcu(
 
             let (port, baud) = match interface_type {
                 Some(interface) => {
-                    let DeviceInterfaceType::VirtualComPort(params) = interface;
+                    let DeviceInterfaceType::Serial(params) = interface;
                     let port = params
                         .port
                         .unwrap_or(serial_port_from_product_id(&product_id)?);
@@ -56,7 +56,7 @@ pub fn protocol_for_mcu(
             Ok(ProtocolType::Stk500v1(Stk500v1Params {
                 port,
                 baud,
-                signature,
+                device_signature: signature,
                 page_size,
                 num_pages,
                 product_id,

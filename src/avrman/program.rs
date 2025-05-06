@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use avrman::{
     Microcontroller,
     error::AvrResult,
-    interface::{ComPortParams, DeviceInterfaceType},
+    interface::{DeviceInterfaceType, SerialportParams},
 };
 use clap::Parser;
 
@@ -34,7 +34,7 @@ pub(crate) fn handle_programming(opts: ProgramOptions) -> AvrResult<()> {
     let file = opts.firmware;
 
     let mut programmer = if opts.serial.is_some() || opts.baudrate.is_some() {
-        let interface = DeviceInterfaceType::VirtualComPort(ComPortParams {
+        let interface = DeviceInterfaceType::Serial(SerialportParams {
             port: opts.serial,
             baud: opts.baudrate,
         });

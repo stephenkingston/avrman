@@ -1,13 +1,15 @@
 use indicatif::ProgressBar;
 use tracing::debug;
 
-use crate::constants::TRANSPORT_THREAD_SLEEP_MICROS;
+use crate::constants::{SERIAL_TIMEOUT_MS, TRANSPORT_THREAD_SLEEP_MICROS};
 use crate::error::AvrError;
 use crate::interface::DeviceInterface;
 use crate::interface::serialport::SerialPortDevice;
 use crate::util::create_progress_bar;
 use crate::{ProgrammerTrait, error::AvrResult};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
+use std::thread::JoinHandle;
 
 #[repr(u8)]
 pub enum Stk500v1Message {
@@ -27,7 +29,7 @@ pub enum Stk500v1Message {
 pub struct Stk500v1Params {
     pub port: String,
     pub baud: u32,
-    pub signature: Vec<u8>,
+    pub device_signature: Vec<u8>,
     pub page_size: u16,
     pub num_pages: u16,
     pub product_id: Vec<u16>,
@@ -39,6 +41,9 @@ pub(crate) struct Stk500v1 {
 
     device_interface: Arc<Mutex<Box<dyn DeviceInterface + Send>>>,
     pub params: Stk500v1Params,
+
+    shutdown: Arc<AtomicBool>,
+    thread_handles: Vec<JoinHandle<()>>,
 }
 
 impl Stk500v1 {
@@ -52,13 +57,18 @@ impl Stk500v1 {
         let transport_sender = Arc::clone(&device_interface);
         let transport_receiver = Arc::clone(&transport_sender);
 
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdown1 = Arc::clone(&shutdown);
+        let shutdown2 = Arc::clone(&shutdown);
+
         // Sender thread
-        std::thread::spawn(move || {
-            loop {
+        let send_handle = std::thread::spawn(move || {
+            while !shutdown1.load(Ordering::Relaxed) {
                 std::thread::sleep(std::time::Duration::from_micros(
                     TRANSPORT_THREAD_SLEEP_MICROS,
                 ));
-                let recv_result = sender_rx.recv();
+                let recv_result =
+                    sender_rx.recv_timeout(std::time::Duration::from_millis(SERIAL_TIMEOUT_MS));
                 match recv_result {
                     Ok(command) => {
                         let mut device_interface = transport_sender
@@ -68,8 +78,11 @@ impl Stk500v1 {
                             eprintln!("Error sending command: {:?}", e);
                         }
                     }
-                    Err(_) => {
-                        debug!("Sender thread terminated.");
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        // Ignore timeout, continue running
+                    }
+                    Err(e) => {
+                        eprintln!("Sender thread terminated. {e}");
                         break;
                     }
                 }
@@ -77,8 +90,8 @@ impl Stk500v1 {
         });
 
         // Receiver thread
-        std::thread::spawn(move || {
-            loop {
+        let receive_handle = std::thread::spawn(move || {
+            while !shutdown2.load(Ordering::Relaxed) {
                 std::thread::sleep(std::time::Duration::from_micros(
                     TRANSPORT_THREAD_SLEEP_MICROS,
                 ));
@@ -104,6 +117,8 @@ impl Stk500v1 {
             sink,
             device_interface,
             params,
+            shutdown,
+            thread_handles: vec![send_handle, receive_handle],
         })
     }
 
@@ -169,7 +184,7 @@ impl Stk500v1 {
             ],
             [
                 vec![Stk500v1Message::RespStkInSync as u8],
-                self.params.signature.clone(),
+                self.params.device_signature.clone(),
                 vec![Stk500v1Message::RespStkOk as u8],
             ]
             .concat(),
@@ -402,6 +417,17 @@ impl Stk500v1 {
             progress_bar.finish_with_message("Verified.");
         }
         Ok(())
+    }
+}
+
+impl Drop for Stk500v1 {
+    fn drop(&mut self) {
+        self.shutdown.store(true, Ordering::Relaxed);
+        for thread in self.thread_handles.drain(..) {
+            thread
+                .join()
+                .unwrap_or_else(|e| eprintln!("Thread join failed: {:?}", e));
+        }
     }
 }
 

@@ -15,7 +15,7 @@ pub(crate) trait DeviceInterface {
 }
 
 #[derive(Debug, Clone)]
-pub struct ComPortParams {
+pub struct SerialportParams {
     pub port: Option<ComPort>,
 
     /// Baud rate is optional, since this is usually fixed for
@@ -25,5 +25,5 @@ pub struct ComPortParams {
 
 #[derive(Debug, Clone)]
 pub enum DeviceInterfaceType {
-    VirtualComPort(ComPortParams),
+    Serial(SerialportParams),
 }

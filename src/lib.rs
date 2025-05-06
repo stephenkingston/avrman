@@ -25,6 +25,16 @@ pub struct Programmer {
 }
 
 impl Programmer {
+    /// Simplest method to create a new programmer. Given a supported microcontroller name,
+    /// this will automatically look for the device and set all appropriate settings
+    /// necessary for programming
+    pub fn new(mcu: Microcontroller) -> AvrResult<Self> {
+        let protocol = protocol_for_mcu(mcu, None)?;
+        Self::from_protocol(protocol)
+    }
+
+    /// Create a programmer with a specific set of protocol parameters. This is can be used to program boards
+    /// for which there is no official support on avrman, that use the Stk500v1 protocol
     pub fn from_protocol(protocol: ProtocolType) -> AvrResult<Self> {
         let programmer: Box<dyn ProgrammerTrait> = match protocol {
             ProtocolType::Stk500v1(params) => Box::new(protocols::stk500v1::Stk500v1::new(params)?),
@@ -37,11 +47,9 @@ impl Programmer {
         })
     }
 
-    pub fn new(mcu: Microcontroller) -> AvrResult<Self> {
-        let protocol = protocol_for_mcu(mcu, None)?;
-        Self::from_protocol(protocol)
-    }
-
+    /// Create a programmer for a given MCU, with interface parameters (eg: for a COM port,
+    /// this will be serial port and baud rate). Useful in case, Programmer::new isn't able
+    /// to automatically select the serial port
     pub fn from_mcu_and_interface(
         mcu: Microcontroller,
         interface: DeviceInterfaceType,
@@ -50,10 +58,14 @@ impl Programmer {
         Self::from_protocol(protocol)
     }
 
+    /// Enable or disable a progress bar during programming/verify
+    /// Progress bar is disabled by default
     pub fn progress_bar(&mut self, enable: bool) {
         self.progress_bar_enable = enable;
     }
 
+    /// Enable or disable verification after programming
+    /// Enabled by default
     pub fn verify_after_programming(&mut self, enable: bool) {
         self.verify = enable;
     }
@@ -97,7 +109,7 @@ impl Programmer {
         Ok(())
     }
 
-    /// Program provided intelhex bytearray
+    /// Program provided intelhex, input as string read from a .hex file
     pub fn program_hex_buffer(&self, hex_content: &str) -> AvrResult<()> {
         let bin = self.parse_intel_hex(hex_content)?;
         self.programmer
@@ -105,7 +117,7 @@ impl Programmer {
         Ok(())
     }
 
-    /// Program binary (parsed from hex)
+    /// Program binary data
     pub fn program_binary(&self, bin: Vec<u8>) -> AvrResult<()> {
         self.programmer
             .program_firmware(bin, self.verify, self.progress_bar_enable)?;
