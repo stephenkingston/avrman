@@ -8,6 +8,7 @@ name = "avrman"
 path = "src/avrman/main.rs"
 
 [dependencies]
+clap = { version = "4.5.37", features = ["derive"] }
 ihex = "3.0.0"
 indicatif = "0.17.11"
 serialport = "4.7.1"

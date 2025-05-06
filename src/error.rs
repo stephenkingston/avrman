@@ -10,6 +10,9 @@ pub enum AvrError {
 
     #[error("Programmer error: {0}")]
     ProgrammerError(String),
+
+    #[error("Configuration error: {0}")]
+    ConfigurationError(String),
 }
 
 pub type AvrResult<T> = std::result::Result<T, AvrError>;

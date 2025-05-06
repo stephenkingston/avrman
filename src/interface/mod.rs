@@ -1,4 +1,5 @@
 pub mod serialport;
+use serialport::{BaudRate, ComPort};
 
 use crate::error::AvrResult;
 
@@ -11,4 +12,18 @@ pub(crate) trait DeviceInterface {
 
     /// Reset the target device
     fn reset(&mut self) -> AvrResult<()>;
+}
+
+#[derive(Debug, Clone)]
+pub struct ComPortParams {
+    pub port: Option<ComPort>,
+
+    /// Baud rate is optional, since this is usually fixed for
+    /// a given microcontroller type
+    pub baud: Option<BaudRate>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DeviceInterfaceType {
+    VirtualComPort(ComPortParams),
 }

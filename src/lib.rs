@@ -4,12 +4,13 @@ pub use boards::Microcontroller;
 use boards::protocol_for_mcu;
 use error::{AvrError, AvrResult};
 use ihex::Reader;
+use interface::DeviceInterfaceType;
 use protocols::{ProgrammerTrait, stk500v1::Stk500v1Params};
 
 pub mod boards;
 pub(crate) mod constants;
 pub mod error;
-pub(crate) mod interface;
+pub mod interface;
 pub mod protocols;
 pub(crate) mod util;
 
@@ -19,6 +20,7 @@ pub enum ProtocolType {
 
 pub struct Programmer {
     programmer: Box<dyn ProgrammerTrait>,
+    verify: bool,
     progress_bar_enable: bool,
 }
 
@@ -31,16 +33,29 @@ impl Programmer {
         Ok(Programmer {
             programmer,
             progress_bar_enable: false,
+            verify: true,
         })
     }
 
     pub fn new(mcu: Microcontroller) -> AvrResult<Self> {
-        let protocol = protocol_for_mcu(mcu);
+        let protocol = protocol_for_mcu(mcu, None)?;
+        Self::from_protocol(protocol)
+    }
+
+    pub fn from_mcu_and_interface(
+        mcu: Microcontroller,
+        interface: DeviceInterfaceType,
+    ) -> AvrResult<Self> {
+        let protocol = protocol_for_mcu(mcu, Some(interface))?;
         Self::from_protocol(protocol)
     }
 
     pub fn progress_bar(&mut self, enable: bool) {
         self.progress_bar_enable = enable;
+    }
+
+    pub fn verify_after_programming(&mut self, enable: bool) {
+        self.verify = enable;
     }
 
     /// Parse intel hex file raw string to binary
@@ -77,7 +92,7 @@ impl Programmer {
 
         let bin = self.parse_intel_hex(&hex_content)?;
         self.programmer
-            .program_firmware(bin, self.progress_bar_enable)?;
+            .program_firmware(bin, self.verify, self.progress_bar_enable)?;
 
         Ok(())
     }
@@ -86,14 +101,14 @@ impl Programmer {
     pub fn program_hex_buffer(&self, hex_content: &str) -> AvrResult<()> {
         let bin = self.parse_intel_hex(hex_content)?;
         self.programmer
-            .program_firmware(bin, self.progress_bar_enable)?;
+            .program_firmware(bin, self.verify, self.progress_bar_enable)?;
         Ok(())
     }
 
     /// Program binary (parsed from hex)
     pub fn program_binary(&self, bin: Vec<u8>) -> AvrResult<()> {
         self.programmer
-            .program_firmware(bin, self.progress_bar_enable)?;
+            .program_firmware(bin, self.verify, self.progress_bar_enable)?;
         Ok(())
     }
 }

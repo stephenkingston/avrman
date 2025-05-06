@@ -1,5 +1,5 @@
 use indicatif::ProgressBar;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::constants::TRANSPORT_THREAD_SLEEP_MICROS;
 use crate::error::AvrError;
@@ -31,7 +31,6 @@ pub struct Stk500v1Params {
     pub page_size: u16,
     pub num_pages: u16,
     pub product_id: Vec<u16>,
-    pub verify: bool,
 }
 
 pub(crate) struct Stk500v1 {
@@ -39,7 +38,7 @@ pub(crate) struct Stk500v1 {
     sink: mpsc::Sender<Vec<u8>>,
 
     device_interface: Arc<Mutex<Box<dyn DeviceInterface + Send>>>,
-    params: Stk500v1Params,
+    pub params: Stk500v1Params,
 }
 
 impl Stk500v1 {
@@ -70,7 +69,7 @@ impl Stk500v1 {
                         }
                     }
                     Err(_) => {
-                        info!("Sender thread terminated.");
+                        debug!("Sender thread terminated.");
                         break;
                     }
                 }
@@ -357,7 +356,7 @@ impl Stk500v1 {
             }
         }
         if let Some(progress_bar) = &pb {
-            progress_bar.finish_with_message("Done programming!");
+            progress_bar.finish_with_message("Programmed.");
         }
 
         Ok(())
@@ -400,14 +399,19 @@ impl Stk500v1 {
             }
         }
         if let Some(progress_bar) = &pb {
-            progress_bar.finish_with_message("Done verifying!");
+            progress_bar.finish_with_message("Verified.");
         }
         Ok(())
     }
 }
 
 impl ProgrammerTrait for Stk500v1 {
-    fn program_firmware(&self, firmware: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
+    fn program_firmware(
+        &self,
+        firmware: Vec<u8>,
+        verify: bool,
+        enable_progress_bar: bool,
+    ) -> AvrResult<()> {
         self.reset()?;
         self.sync()?;
 
@@ -417,16 +421,12 @@ impl ProgrammerTrait for Stk500v1 {
 
         self.upload(firmware.clone(), enable_progress_bar)?;
 
-        if self.params.verify {
-            self.verify_firmware(firmware, enable_progress_bar)?;
+        if verify {
+            self.verify(firmware, enable_progress_bar)?;
         }
         self.exit_programming_mode()?;
+        println!("Done! ✨ 🍰 ✨");
 
-        Ok(())
-    }
-
-    fn verify_firmware(&self, firmware: Vec<u8>, enable_progress_bar: bool) -> AvrResult<()> {
-        self.verify(firmware, enable_progress_bar)?;
         Ok(())
     }
 
