@@ -17,7 +17,7 @@ cargo install avrman
 
 Now, you can execute `avrman` from any terminal
 
-![avrman](./doc/cmdline.png)
+![avrman](https://raw.githubusercontent.com/stephenkingston/avrman/refs/heads/main/doc/cmdline.png)
 
 To program an Arduino Uno, you can now run
 
@@ -25,9 +25,10 @@ To program an Arduino Uno, you can now run
 avrman program --board arduino-uno --firmware <path/to/hex/file>
 ```
 
-![avrman done](./doc/programming.png)
+![avrman done](https://raw.githubusercontent.com/stephenkingston/avrman/refs/heads/main/doc/programming.png)
 
-> [!NOTE]
+> **Note**
+>
 > This command includes optional `--serial` and `--baudrate` arguments which are
 > picked automatically based on the provided microcontroller/board name.
 
