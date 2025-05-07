@@ -11,13 +11,13 @@ executable.
 
 To install avrman globally as an executable, run the following cargo command:
 
-```
+```sh
 cargo install avrman
 ```
 
 Now, you can execute `avrman` from any terminal
 
-```
+```sh
 > avrman
 Usage: avrman <COMMAND>
 
@@ -33,7 +33,7 @@ Options:
 
 To program an Arduino Uno, you can now run
 
-```
+```sh
 > avrman program -b arduino-uno -f ~/repos/avrman/tests/blink.hex
 ◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼ 8/8 (100%) Programmed.
 ◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼ 8/8 (100%) Verified.
@@ -50,20 +50,26 @@ Done! ✨ 🍰 ✨
 
 You can use avrman in your own Rust code as a library.
 
-```
+```sh
 cargo add avrman
 ```
 
 To use a tested and supported board:
 
 ```rust
+use avrman::Microcontroller::ArduinoUno;
+use avrman::Programmer;
+use avrman::error::AvrResult;
 
 fn main() -> AvrResult<()> {
-    let mut programmer = Programmer::new(avrman::Microcontroller::ArduinoUno)?;
-    programmer.progress_bar(true); // Optional, shows a progress bar during programming
-    programmer.verify_after_programming(false); // Optional, disable verify
+    let mut programmer = Programmer::new(ArduinoUno)?;
+    // Optional, shows a progress bar during programming
+    programmer.progress_bar(true);
+     // Optional, disable verify
+    programmer.verify_after_programming(false);
 
-    programmer.program_hex_file("./blink.hex")?;
+    programmer.program_hex_file("./tests/blink.hex")?;
+    Ok(())
 }
 
 ```
@@ -74,20 +80,30 @@ To use a board that uses Stk500v1 protocol and if you are aware of all the
 parameters necessary to make it work, use this.
 
 ```rust
+use avrman::ProtocolType::Stk500v1;
+use avrman::protocols::stk500v1::Stk500v1Params;
+use avrman::Programmer;
+use avrman::error::AvrResult;
+
 fn main() -> AvrResult<()> {
+    std::thread::sleep(std::time::Duration::from_secs(2));
+
     let mut programmer =
-        Programmer::from_protocol(ProtocolType::Stk500v1(Stk500v1Params {
-            port,
+        Programmer::from_protocol(Stk500v1(Stk500v1Params {
+            port: String::from("/dev/ttyUSB0"),
             baud: 115200,
             device_signature: vec![0x1e, 0x95, 0x0f],
             page_size: 128,
             num_pages: 256,
-            product_id: vec![0x0043, 0x7523, 0x0001, 0xea60, 0x6015],
+            product_id: vec![0x0043, 0x7523, 0x0001, 0xea60,
+                          0x6015],
         }))?;
 
     programmer.progress_bar(true);
     programmer.verify_after_programming(false);
-    programmer.program_hex_file("./hello_world.hex")?;
+    programmer.program_hex_file("./tests/etp.hex")?;
+
+    Ok(())
 }
 
 ```
