@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 use std::{fs::File, io::Read};
 
 pub use boards::Microcontroller;
@@ -93,7 +95,7 @@ impl Programmer {
         Ok(bin)
     }
 
-    /// Program board with provided intelhex file from file path
+    /// Program board with provided intelhex file
     pub fn program_hex_file(&self, file_path: &str) -> AvrResult<()> {
         let mut file = File::open(file_path)
             .map_err(|e| AvrError::FirmwareError(format!("Failed to read file: {}", e)))?;
@@ -109,7 +111,7 @@ impl Programmer {
         Ok(())
     }
 
-    /// Program provided intelhex, input as string read from a .hex file
+    /// Program provided intelhex, provided as string read from a .hex file
     pub fn program_hex_buffer(&self, hex_content: &str) -> AvrResult<()> {
         let bin = self.parse_intel_hex(hex_content)?;
         self.programmer

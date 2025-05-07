@@ -34,7 +34,7 @@ mod tests {
 
         {
             // From MCU and custom protocol
-            let mut programmer2 =
+            let mut programmer =
                 Programmer::from_protocol(ProtocolType::Stk500v1(Stk500v1Params {
                     port,
                     baud: 115200,
@@ -45,9 +45,9 @@ mod tests {
                 }))
                 .unwrap();
 
-            programmer2.progress_bar(true);
-            programmer2.verify_after_programming(false);
-            programmer2.program_hex_file(&etp_hex).unwrap();
+            programmer.progress_bar(true);
+            programmer.verify_after_programming(false);
+            programmer.program_hex_file(&etp_hex).unwrap();
         }
     }
 }

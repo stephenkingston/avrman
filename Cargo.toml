@@ -3,6 +3,9 @@ name = "avrman"
 version = "0.1.0"
 edition = "2024"
 
+[package.metadata.docs.rs]
+readme="README.md"
+
 [[bin]]
 name = "avrman"
 path = "src/avrman/main.rs"
