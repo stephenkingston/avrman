@@ -2,9 +2,9 @@
 name = "avrman"
 version = "0.1.0"
 edition = "2024"
-
-[package.metadata.docs.rs]
-readme="README.md"
+license = "MIT"
+description = "AVR programmer natively written in Rust"
+repository = "https://github.com/stephenkingston/avrman"
 
 [[bin]]
 name = "avrman"

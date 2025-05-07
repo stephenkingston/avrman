@@ -17,15 +17,29 @@ cargo install avrman
 
 Now, you can execute `avrman` from any terminal
 
-![avrman](https://raw.githubusercontent.com/stephenkingston/avrman/refs/heads/main/doc/cmdline.png)
+```
+> avrman
+Usage: avrman <COMMAND>
+
+Commands:
+  program  Program target device with options
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+
+```
 
 To program an Arduino Uno, you can now run
 
 ```
-avrman program --board arduino-uno --firmware <path/to/hex/file>
-```
+> avrman program -b arduino-uno -f ~/repos/avrman/tests/blink.hex
+◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼ 8/8 (100%) Programmed.
+◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼◼ 8/8 (100%) Verified.
+Done! ✨ 🍰 ✨
 
-![avrman done](https://raw.githubusercontent.com/stephenkingston/avrman/refs/heads/main/doc/programming.png)
+```
 
 > **Note**
 >
