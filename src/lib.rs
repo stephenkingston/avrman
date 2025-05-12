@@ -7,7 +7,7 @@ use boards::protocol_for_mcu;
 use error::{AvrError, AvrResult};
 use ihex::Reader;
 use interface::DeviceInterfaceType;
-use protocols::{ProgrammerTrait, stk500v1::Stk500v1Params};
+use protocols::{ProgrammerTrait, stk500v1::Stk500v1Params, stk500v2::Stk500v2Params};
 
 pub mod boards;
 pub(crate) mod constants;
@@ -18,6 +18,7 @@ pub(crate) mod util;
 
 pub enum ProtocolType {
     Stk500v1(Stk500v1Params),
+    Stk500v2(Stk500v2Params),
 }
 
 pub struct Programmer {
@@ -40,6 +41,7 @@ impl Programmer {
     pub fn from_protocol(protocol: ProtocolType) -> AvrResult<Self> {
         let programmer: Box<dyn ProgrammerTrait> = match protocol {
             ProtocolType::Stk500v1(params) => Box::new(protocols::stk500v1::Stk500v1::new(params)?),
+            ProtocolType::Stk500v2(params) => Box::new(protocols::stk500v2::Stk500v2::new(params)?),
         };
 
         Ok(Programmer {

@@ -1,5 +1,6 @@
 use crate::error::AvrResult;
 pub mod stk500v1;
+pub mod stk500v2;
 
 /// Currently only implements program/reset. Can be extended in
 /// future to do other operations like dump flash, erase chip, etc.,
